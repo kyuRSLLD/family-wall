@@ -204,6 +204,8 @@ li.done span{color:var(--text-2);text-decoration:line-through}
 .ev span{font-size:.72rem;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ev.short{flex-direction:row;align-items:center;gap:.35rem;padding-top:0;padding-bottom:0}
 .now{position:absolute;left:0;right:0;height:2px;background:var(--accent);z-index:3;pointer-events:none}
+.now.now-wide{left:3.8rem;right:0;height:1px;opacity:.45;z-index:2}
+.now.now-wide::before{display:none}
 .now::before{content:"";position:absolute;left:-.32rem;top:-.28rem;width:.6rem;height:.6rem;border-radius:50%;background:var(--accent)}
 
 /* day view */
@@ -320,6 +322,16 @@ li.done span{color:var(--text-2);text-decoration:line-through}
 .sb-ev small{display:block;font-size:.95rem;font-weight:500;color:rgba(255,255,255,.5)}
 .sb-ev.now b{color:#fff}
 .sb-ev.now time{color:#ff9f0a;font-weight:700}
+.sb-now{margin:1.8rem auto 0;display:flex;flex-direction:column;gap:.7rem;max-width:30rem;text-align:left}
+.sb-nowcard{display:grid;grid-template-columns:.3rem 1fr;gap:.9rem;padding:.8rem 1.1rem;border-radius:1rem;background:rgba(255,255,255,.08)}
+.sb-nowcard .bar{background:var(--c);border-radius:.2rem}
+.sb-nowcard i{font-style:normal;font-size:.85rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#ff9f0a}
+.sb-nowcard b{display:block;font-size:1.5rem;font-weight:600;line-height:1.25;margin-top:.1rem}
+.sb-nowcard small{display:block;font-size:1rem;color:rgba(255,255,255,.55);margin-top:.1rem}
+.standby.night .sb-nowcard{background:rgba(214,39,28,.08)}
+.standby.night .sb-nowcard i,.standby.night .sb-nowcard small{color:rgba(214,39,28,.75)}
+.standby.night .sb-nowcard b{color:#d6271c}
+.standby.night .sb-nowcard .bar{background:#8a1a12}
 .sb-none{font-size:1.4rem;color:rgba(255,255,255,.55)}
 .standby.night .sb-group,.standby.night .sb-ev time,.standby.night .sb-ev small,.standby.night .sb-none{color:rgba(214,39,28,.75)}
 .standby.night .sb-ev b{color:#d6271c}
@@ -736,9 +748,8 @@ function timeGrid(days){
     cols+='<div class="tg-col'+(t?' is-today':'')+'">'+layout(timed).map(evBlock).join('')+(t?'<div class="now" style="top:calc(var(--hour) * '+(nowMin/60)+')"></div>':'')+'</div>';
   });
   let times='';
-  for(let h=1;h<24;h++){if(hasToday&&Math.abs(nowMin-h*60)<20)continue;times+='<span style="top:calc(var(--hour) * '+h+')">'+hourLabel(h)+'</span>';}
-  if(hasToday) times+='<span class="now-label" style="top:calc(var(--hour) * '+(nowMin/60)+')">'+fmtTime(now)+'</span>';
-  return '<div class="tg" style="--n:'+days.length+'"><div class="tg-row tg-heads">'+head+'</div><div class="tg-row tg-allday">'+ad+'</div><div class="tg-scroll"><div class="tg-row tg-body"><div class="tg-times">'+times+'</div>'+cols+'</div></div></div>';
+  for(let h=1;h<24;h++){times+='<span style="top:calc(var(--hour) * '+h+')">'+hourLabel(h)+'</span>';}
+  return '<div class="tg" style="--n:'+days.length+'"><div class="tg-row tg-heads">'+head+'</div><div class="tg-row tg-allday">'+ad+'</div><div class="tg-scroll"><div class="tg-row tg-body"><div class="tg-times">'+times+'</div>'+cols+(hasToday&&days.length>1?'<div class="now now-wide" style="top:calc(var(--hour) * '+(nowMin/60)+')"></div>':'')+'</div></div></div>';
 }
 function dayView(){
   const evs=eventsOn(cursor,allEvents());
@@ -1015,7 +1026,10 @@ function renderStandby(){
   sb.classList.toggle('night',h>=22||h<6);
   const t=S.clock24?pad(h)+':'+pad(n.getMinutes()):(h%12||12)+':'+pad(n.getMinutes());
   const lim=addDays(sod(n),3);
-  const evs=allEvents().filter(e=>e.end>n&&e.start<lim).sort((a,b)=>(a.start-b.start)||(b.allDay-a.allDay)).slice(0,9);
+  const upcoming=allEvents().filter(e=>e.end>n&&e.start<lim).sort((a,b)=>(a.start-b.start)||(b.allDay-a.allDay));
+  const nowEvs=upcoming.filter(e=>!e.allDay&&e.start<=n).slice(0,2);
+  const evs=upcoming.filter(e=>!nowEvs.includes(e)).slice(0,9);
+  const nowHtml=nowEvs.length?'<div class="sb-now">'+nowEvs.map(e=>'<div class="sb-nowcard" style="--c:'+colorOf(e.member)+'"><span class="bar"></span><div><i>Now · until '+fmtTime(e.end)+'</i><b>'+esc(e.title)+'</b><small>'+esc(member(e.member).name)+(e.location?' · '+esc(e.location):'')+'</small></div></div>').join('')+'</div>':'';
   let list='',last='';
   evs.forEach(e=>{
     const lab=dayLabel(e.start<n?n:e.start);
@@ -1024,7 +1038,7 @@ function renderStandby(){
     list+='<div class="sb-ev'+(live?' now':'')+'" style="--c:'+colorOf(e.member)+'"><span class="dot"></span><time>'+(e.allDay?'All day':live?'Now':fmtTime(e.start))+'</time><b>'+esc(e.title)+'<small>'+esc(member(e.member).name)+(e.location?' · '+esc(e.location):'')+'</small></b></div>';
   });
   if(!list) list='<p class="sb-none">Nothing scheduled for the next few days.</p>';
-  $('#sbInner').innerHTML='<div class="sb-clock"><p class="sb-time">'+t+'</p><p class="sb-date">'+fmt(n,{weekday:'long',month:'long',day:'numeric'})+'</p>'+(weather?'<div class="sb-meta"><span>'+wxSvg(weather.code,weather.isDay)+Math.round(weather.temp)+'° '+esc(wxLabel(weather.code,weather.isDay))+'</span></div>':'')+'</div><div class="sb-list">'+list+'</div>';
+  $('#sbInner').innerHTML='<div class="sb-clock"><p class="sb-time">'+t+'</p><p class="sb-date">'+fmt(n,{weekday:'long',month:'long',day:'numeric'})+'</p>'+(weather?'<div class="sb-meta"><span>'+wxSvg(weather.code,weather.isDay)+Math.round(weather.temp)+'° '+esc(wxLabel(weather.code,weather.isDay))+'</span></div>':'')+nowHtml+'</div><div class="sb-list">'+list+'</div>';
   $('#sbInner').style.transform='translate('+(Math.random()*2-1).toFixed(2)+'vw,'+(Math.random()*2-1).toFixed(2)+'vh)';
 }
 function openStandby(){if(sheetKind)closeSheet();sbOpen=true;renderStandby();sb.classList.add('open');}
