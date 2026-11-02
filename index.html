@@ -308,8 +308,24 @@ li.done span{color:var(--text-2);text-decoration:line-through}
 /* standby */
 .standby{position:fixed;inset:0;background:#000;color:#fff;z-index:80;display:none;place-items:center;cursor:pointer}
 .standby.open{display:grid}
-.sb-inner{text-align:center;transition:transform 3s ease}
-.sb-time{font-weight:200;font-size:min(24vw,46vh);letter-spacing:-.05em;line-height:.95;font-variant-numeric:tabular-nums}
+.sb-inner{display:grid;grid-template-columns:auto minmax(0,34rem);gap:4.5rem;align-items:center;transition:transform 3s ease;padding:0 4vw;max-width:100%}
+.sb-clock{text-align:center}
+.sb-list{border-left:1px solid rgba(255,255,255,.18);padding-left:3rem;max-height:82vh;overflow:hidden}
+.sb-group{font-size:1rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#ff9f0a;margin:1.3rem 0 .5rem}
+.sb-group:first-child{margin-top:0}
+.sb-ev{display:grid;grid-template-columns:.9rem 6.8rem 1fr;align-items:baseline;gap:.8rem;padding:.42rem 0;font-size:1.45rem;line-height:1.3}
+.sb-ev .dot{width:.7rem;height:.7rem;border-radius:50%;background:var(--c);align-self:center}
+.sb-ev time{color:rgba(255,255,255,.6);font-variant-numeric:tabular-nums;font-size:1.2rem;white-space:nowrap}
+.sb-ev b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-ev small{display:block;font-size:.95rem;font-weight:500;color:rgba(255,255,255,.5)}
+.sb-ev.now b{color:#fff}
+.sb-ev.now time{color:#ff9f0a;font-weight:700}
+.sb-none{font-size:1.4rem;color:rgba(255,255,255,.55)}
+.standby.night .sb-group,.standby.night .sb-ev time,.standby.night .sb-ev small,.standby.night .sb-none{color:rgba(214,39,28,.75)}
+.standby.night .sb-ev b{color:#d6271c}
+.standby.night .sb-ev .dot{background:#8a1a12}
+.standby.night .sb-list{border-color:rgba(214,39,28,.3)}
+.sb-time{font-weight:200;font-size:min(17vw,40vh);letter-spacing:-.05em;line-height:.95;font-variant-numeric:tabular-nums}
 .sb-date{font-size:2rem;font-weight:600;color:#ff9f0a;margin-top:.6rem}
 .sb-meta{display:flex;justify-content:center;align-items:center;gap:2.2rem;font-size:1.35rem;color:rgba(255,255,255,.7);margin-top:1.4rem;font-weight:500}
 .sb-meta .wxi{width:2rem;height:2rem;display:inline-block;vertical-align:middle;margin-right:.4rem}
@@ -998,9 +1014,18 @@ function renderStandby(){
   const n=new Date(),h=n.getHours();
   sb.classList.toggle('night',h>=22||h<6);
   const t=S.clock24?pad(h)+':'+pad(n.getMinutes()):(h%12||12)+':'+pad(n.getMinutes());
-  const next=allEvents().filter(e=>!e.allDay&&e.start>n).sort((a,b)=>a.start-b.start)[0];
-  $('#sbInner').innerHTML='<p class="sb-time">'+t+'</p><p class="sb-date">'+fmt(n,{weekday:'long',month:'long',day:'numeric'})+'</p><div class="sb-meta">'+(weather?'<span>'+wxSvg(weather.code,weather.isDay)+Math.round(weather.temp)+'°</span>':'')+(next?'<span>Next: '+esc(next.title)+' · '+(same(next.start,n)?'':fmt(next.start,{weekday:'short'})+' ')+fmtTime(next.start)+'</span>':'')+'</div>';
-  $('#sbInner').style.transform='translate('+(Math.random()*4-2).toFixed(2)+'vw,'+(Math.random()*4-2).toFixed(2)+'vh)';
+  const lim=addDays(sod(n),3);
+  const evs=allEvents().filter(e=>e.end>n&&e.start<lim).sort((a,b)=>(a.start-b.start)||(b.allDay-a.allDay)).slice(0,9);
+  let list='',last='';
+  evs.forEach(e=>{
+    const lab=dayLabel(e.start<n?n:e.start);
+    if(lab!==last){list+='<p class="sb-group">'+esc(lab)+'</p>';last=lab;}
+    const live=!e.allDay&&e.start<=n;
+    list+='<div class="sb-ev'+(live?' now':'')+'" style="--c:'+colorOf(e.member)+'"><span class="dot"></span><time>'+(e.allDay?'All day':live?'Now':fmtTime(e.start))+'</time><b>'+esc(e.title)+'<small>'+esc(member(e.member).name)+(e.location?' · '+esc(e.location):'')+'</small></b></div>';
+  });
+  if(!list) list='<p class="sb-none">Nothing scheduled for the next few days.</p>';
+  $('#sbInner').innerHTML='<div class="sb-clock"><p class="sb-time">'+t+'</p><p class="sb-date">'+fmt(n,{weekday:'long',month:'long',day:'numeric'})+'</p>'+(weather?'<div class="sb-meta"><span>'+wxSvg(weather.code,weather.isDay)+Math.round(weather.temp)+'° '+esc(wxLabel(weather.code,weather.isDay))+'</span></div>':'')+'</div><div class="sb-list">'+list+'</div>';
+  $('#sbInner').style.transform='translate('+(Math.random()*2-1).toFixed(2)+'vw,'+(Math.random()*2-1).toFixed(2)+'vh)';
 }
 function openStandby(){if(sheetKind)closeSheet();sbOpen=true;renderStandby();sb.classList.add('open');}
 function closeStandby(){sbOpen=false;sb.classList.remove('open');lastActive=Date.now();renderAll();}
