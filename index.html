@@ -332,6 +332,16 @@ li.done span{color:var(--text-2);text-decoration:line-through}
 .standby.night .sb-nowcard i,.standby.night .sb-nowcard small{color:rgba(214,39,28,.75)}
 .standby.night .sb-nowcard b{color:#d6271c}
 .standby.night .sb-nowcard .bar{background:#8a1a12}
+.sb-tests{background:rgba(255,214,10,.10);border:1px solid rgba(255,214,10,.38);border-radius:1.1rem;padding:.95rem 1.2rem;margin-bottom:1.6rem}
+.sb-tests-h{font-size:.95rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#ffd60a;margin-bottom:.35rem;display:flex;align-items:center;gap:.5rem}
+.sb-tests-h svg{width:1.15rem;height:1.15rem}
+.sb-test{display:grid;grid-template-columns:8.2rem 1fr;gap:.8rem;padding:.38rem 0;align-items:baseline}
+.sb-test .when{color:#ffd60a;font-weight:700;font-size:1.1rem;white-space:nowrap}
+.sb-test b{font-size:1.45rem;font-weight:600;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-test small{display:block;font-size:.95rem;font-weight:600;color:var(--c)}
+.standby.night .sb-tests{background:rgba(214,39,28,.07);border-color:rgba(214,39,28,.35)}
+.standby.night .sb-tests-h,.standby.night .sb-test .when,.standby.night .sb-test small{color:rgba(214,39,28,.8)}
+.standby.night .sb-test b{color:#d6271c}
 .sb-none{font-size:1.4rem;color:rgba(255,255,255,.55)}
 .standby.night .sb-group,.standby.night .sb-ev time,.standby.night .sb-ev small,.standby.night .sb-none{color:rgba(214,39,28,.75)}
 .standby.night .sb-ev b{color:#d6271c}
@@ -480,6 +490,13 @@ const hourShort=h=>S.clock24?pad(h):(h%12||12)+(h<12?'AM':'PM');
 function dayLabel(d){const t=sod(new Date());if(same(d,t))return 'Today';if(same(d,addDays(t,1)))return 'Tomorrow';return fmt(d,{weekday:'long',month:'short',day:'numeric'});}
 
 /* ---------- people ---------- */
+const TEST_RE=/\b(quiz(zes)?|tests?|exams?|midterms?|finals?)\b/i;
+function testMembers(){
+  if(Array.isArray(S.testMembers)) return S.testMembers;
+  let ids=S.members.filter(m=>/sophie|maddie/i.test(m.name)).map(m=>m.id);
+  if(!ids.length) ids=S.members.filter(m=>/^kid/i.test(m.name)).map(m=>m.id);
+  return ids;
+}
 const defaultMember=()=>S.members.find(m=>/family/i.test(m.name))||S.members[S.members.length-1];
 const member=id=>S.members.find(m=>m.id===id)||defaultMember();
 const colorOf=id=>'var(--c-'+member(id).color+')';
@@ -507,6 +524,8 @@ function genDemo(){
   add(addDays(t0,1),15,30,60,'Dentist','m3','Main St Dental');
   add(addDays(t0,3),18,30,45,'Parent-teacher conference','m2','School');
   add(addDays(t0,5),11,0,90,'Science fair','m4','School gym');
+  add(addDays(t0,2),8,30,45,'Math quiz','m3','Room 204');
+  add(addDays(t0,4),10,0,60,'Spanish test','m4');
   all(addDays(t0,9),3,'Grandparents visiting','m5');
   const y=t0.getFullYear();
   [y,y+1].forEach(yy=>{all(thanksgiving(yy),1,'Thanksgiving','m5');all(new Date(yy,11,25),1,'Christmas Day','m5');all(new Date(yy,0,1),1,"New Year's Day",'m5');});
@@ -931,6 +950,7 @@ function openSettings(){
   openSheet('settings',{title:'Settings',left:'',right:'Done',body:
     '<section><p class="group-label">Family</p><div class="group"><div class="row"><label for="sFam">Name</label><input id="sFam" type="text" value="'+esc(S.familyName)+'"></div></div></section>'+
     '<section><p class="group-label">People and colors</p><div class="group" id="sMembers">'+S.members.map(memberRow).join('')+'<div class="row"><button type="button" class="link" id="sAddM">Add Person</button></div></div><p class="note">Tap a color dot to change it. Each person\'s events use their color.</p></section>'+
+    '<section><p class="group-label">Quiz and test reminders</p><div class="group"><div class="row"><div class="chips" id="sTests" style="justify-content:flex-start">'+S.members.map(m=>'<button type="button" data-testm="'+m.id+'" style="--c:var(--c-'+m.color+')" aria-pressed="'+testMembers().includes(m.id)+'">'+esc(m.name)+'</button>').join('')+'</div></div></div><p class="note">On the sleep clock, events from these people with quiz, test, exam, midterm or final in the title show at the top, up to a week ahead.</p></section>'+
     '<section><p class="group-label">Calendars</p><div class="group"><div class="row"><label for="sFeed">Calendar link</label><input id="sFeed" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="'+esc(S.feedUrl)+'"></div><div class="row"><label for="sKey">Access code</label><input id="sKey" type="text" placeholder="Same code as in the script" value="'+esc(S.feedKey)+'"></div><div class="row"><span class="grow" id="sSync">'+esc(syncText())+'</span><button type="button" class="link" id="sSyncNow">Sync Now</button></div></div>'+
     (feedCals.length?'<p class="group-label" style="margin-top:1rem">Whose calendar is whose</p><div class="group">'+feedCals.map((c,i)=>'<div class="row"><label for="cal-'+i+'">'+esc(c)+'</label><select id="cal-'+i+'" data-cal="'+esc(c)+'">'+S.members.map(m=>'<option value="'+m.id+'"'+((S.calMap[c]||defaultMember().id)===m.id?' selected':'')+'>'+esc(m.name)+'</option>').join('')+'</select></div>').join('')+'</div>':'')+
     '<details class="help"><summary>How to connect Google Calendar and Tasks</summary><ol><li>On a computer, go to script.google.com while signed in to the Google account with your family calendars, and click New project.</li><li>Delete what is there and paste the code below. On the first line, change change-this-code to a private code of your own, then type the same code in Access code above. Click Save.</li><li>On the left, click + next to Services, pick Google Tasks API, and click Add. This brings in your Google Tasks list.</li><li>Click Deploy, then New deployment. Choose Web app. Set Execute as to Me and Who has access to Anyone. Click Deploy and allow access.</li><li>Copy the Web app link (it ends in /exec) and paste it above.</li></ol><p>iCloud or Outlook calendars: subscribe to them inside Google Calendar (Other calendars, then From URL) and they come through the same link. The access code keeps others from reading or adding events even if they see the link. Reminders on this screen come from your default Google Tasks list.</p><pre id="gsCode">'+esc(GS_CODE)+'</pre><button type="button" class="pillbtn" id="copyCode">Copy Code</button></details></section>'+
@@ -965,6 +985,8 @@ sheet.addEventListener('click',e=>{
   if(dm){if(S.members.length<2){toast('Keep at least one person');return;}S.members=S.members.filter(x=>x.id!==dm.dataset.delm);save();renderAll();openSettings();return;}
   if(t.id==='sAddM'){const used=S.members.map(m=>m.color);S.members.push({id:'m'+Date.now(),name:'New person',color:PALETTE.find(c=>!used.includes(c))||'blue'});save();renderAll();openSettings();return;}
   if(t.id==='sSyncNow'){loadFeed(true);return;}
+  const tmb=t.closest('[data-testm]');
+  if(tmb){let ids=testMembers().slice();const id=tmb.dataset.testm;ids=ids.includes(id)?ids.filter(x=>x!==id):ids.concat([id]);S.testMembers=ids;save();tmb.setAttribute('aria-pressed',String(ids.includes(id)));return;}
   const ps=t.closest('[data-pinset]');
   if(ps){const id=ps.dataset.pinset;let d=(S.dockApps||[]).slice();
     if(d.includes(id)) d=d.filter(x=>x!==id); else { if(d.length>=4){toast('The dock holds up to 4 apps. Unpin one first.');return;} d.push(id);}
@@ -1028,7 +1050,11 @@ function renderStandby(){
   const lim=addDays(sod(n),3);
   const upcoming=allEvents().filter(e=>e.end>n&&e.start<lim).sort((a,b)=>(a.start-b.start)||(b.allDay-a.allDay));
   const nowEvs=upcoming.filter(e=>!e.allDay&&e.start<=n).slice(0,2);
-  const evs=upcoming.filter(e=>!nowEvs.includes(e)).slice(0,9);
+  const tm=testMembers(),tLim=addDays(sod(n),8);
+  const tests=allEvents().filter(e=>tm.includes(e.member)&&TEST_RE.test(e.title)&&e.end>n&&e.start<tLim).sort((a,b)=>a.start-b.start).slice(0,4);
+  const evs=upcoming.filter(e=>!nowEvs.includes(e)&&!tests.includes(e)).slice(0,tests.length?7-Math.min(tests.length,3):9);
+  const whenTest=d=>same(d,n)?'Today':same(d,addDays(sod(n),1))?'Tomorrow':fmt(d,{weekday:'short',month:'short',day:'numeric'});
+  const testsHtml=tests.length?'<div class="sb-tests"><p class="sb-tests-h"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 13l2 2 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Quizzes &amp; tests coming up</p>'+tests.map(e=>'<div class="sb-test" style="--c:'+colorOf(e.member)+'"><span class="when">'+whenTest(e.start)+'</span><b>'+esc(e.title)+'<small>'+esc(member(e.member).name)+(e.allDay?'':' · '+fmtTime(e.start))+'</small></b></div>').join('')+'</div>':'';
   const nowHtml=nowEvs.length?'<div class="sb-now">'+nowEvs.map(e=>'<div class="sb-nowcard" style="--c:'+colorOf(e.member)+'"><span class="bar"></span><div><i>Now · until '+fmtTime(e.end)+'</i><b>'+esc(e.title)+'</b><small>'+esc(member(e.member).name)+(e.location?' · '+esc(e.location):'')+'</small></div></div>').join('')+'</div>':'';
   let list='',last='';
   evs.forEach(e=>{
@@ -1038,7 +1064,7 @@ function renderStandby(){
     list+='<div class="sb-ev'+(live?' now':'')+'" style="--c:'+colorOf(e.member)+'"><span class="dot"></span><time>'+(e.allDay?'All day':live?'Now':fmtTime(e.start))+'</time><b>'+esc(e.title)+'<small>'+esc(member(e.member).name)+(e.location?' · '+esc(e.location):'')+'</small></b></div>';
   });
   if(!list) list='<p class="sb-none">Nothing scheduled for the next few days.</p>';
-  $('#sbInner').innerHTML='<div class="sb-clock"><p class="sb-time">'+t+'</p><p class="sb-date">'+fmt(n,{weekday:'long',month:'long',day:'numeric'})+'</p>'+(weather?'<div class="sb-meta"><span>'+wxSvg(weather.code,weather.isDay)+Math.round(weather.temp)+'° '+esc(wxLabel(weather.code,weather.isDay))+'</span></div>':'')+nowHtml+'</div><div class="sb-list">'+list+'</div>';
+  $('#sbInner').innerHTML='<div class="sb-clock"><p class="sb-time">'+t+'</p><p class="sb-date">'+fmt(n,{weekday:'long',month:'long',day:'numeric'})+'</p>'+(weather?'<div class="sb-meta"><span>'+wxSvg(weather.code,weather.isDay)+Math.round(weather.temp)+'° '+esc(wxLabel(weather.code,weather.isDay))+'</span></div>':'')+nowHtml+'</div><div class="sb-list">'+testsHtml+list+'</div>';
   $('#sbInner').style.transform='translate('+(Math.random()*2-1).toFixed(2)+'vw,'+(Math.random()*2-1).toFixed(2)+'vh)';
 }
 function openStandby(){if(sheetKind)closeSheet();sbOpen=true;renderStandby();sb.classList.add('open');}
